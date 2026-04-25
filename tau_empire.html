@@ -189,6 +189,8 @@
     background: rgba(0,245,196,0.2);
     box-shadow: 0 0 16px rgba(0,245,196,0.2);
   }
+  .btn-danger { border-color: rgba(232,72,85,0.4); color: #f87171; }
+  .btn-danger:hover { background: rgba(232,72,85,0.1); border-color: var(--tau-red); }
 
   /* GRID */
   .grid {
@@ -612,7 +614,12 @@
     <div>PUNTEN: <span id="nav-pts">0</span></div>
     <div>OC TOTAAL: <span id="nav-oc">0</span></div>
   </div>
-  <button class="btn btn-primary" onclick="openModal()">+ Unit toevoegen</button>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button class="btn" onclick="document.getElementById('json-input').click()" title="Importeer BattleScribe/NewRecruit JSON">⬆ JSON importeren</button>
+    <button class="btn btn-danger" onclick="clearAll()" title="Verwijder alle units">✕ Alles wissen</button>
+    <button class="btn btn-primary" onclick="openModal()">+ Unit toevoegen</button>
+  </div>
+  <input type="file" id="json-input" accept=".json" style="display:none" onchange="importJSON(event)">
 </nav>
 
 <div class="hero">
@@ -726,17 +733,173 @@ const ROLE_COLOR = {
   'Fast Attack': '#86efac', 'Heavy Support': '#f87171'
 };
 
-let units = [
-  {id:1,name:'Cadre Fireblade',role:'HQ',pts:55,move:'6"',t:3,save:'4+',w:4,ld:7,oc:1,weapons:['Pulse Rifle','Pulse Pistol'],abilities:['For the Greater Good','Volley Fire'],keywords:["T'au Empire","Aun'Va Sept","Infantry","Character"],img:''},
-  {id:2,name:'Fire Warriors Strike',role:'Troops',pts:85,move:'6"',t:3,save:'4+',w:1,ld:7,oc:2,weapons:['Pulse Rifle','Photon Grenade'],abilities:['For the Greater Good','Bonding Knife Ritual'],keywords:["T'au Empire","Sept","Infantry"],img:''},
-  {id:3,name:'Crisis Battlesuits',role:'Elite',pts:135,move:'8"',t:5,save:'3+',w:3,ld:8,oc:1,weapons:['Burst Cannon','Plasma Rifle','Shield Generator'],abilities:['Jet Pack','Multi-tracker'],keywords:["T'au Empire","Sept","Battlesuit"],img:''},
-  {id:4,name:'Pathfinder Team',role:'Troops',pts:70,move:'7"',t:3,save:'5+',w:1,ld:7,oc:2,weapons:['Pulse Carbine','Markerlight','Ion Rifle'],abilities:['Scouts','Markerlights'],keywords:["T'au Empire","Sept","Infantry"],img:''},
-  {id:5,name:'Broadside Battlesuit',role:'Heavy Support',pts:95,move:'5"',t:5,save:'2+',w:6,ld:8,oc:1,weapons:['Heavy Rail Rifle','Smart Missile System'],abilities:['Stabilized Optics'],keywords:["T'au Empire","Sept","Battlesuit"],img:''},
-  {id:6,name:'Piranha',role:'Fast Attack',pts:55,move:'14"',t:4,save:'4+',w:4,ld:7,oc:0,weapons:['Burst Cannon','Seeker Missile'],abilities:['Flier','Hover Jet'],keywords:["T'au Empire","Sept","Vehicle"],img:''}
-];
-let nextId = 10;
+// ── localStorage helpers ──────────────────────────────────────────────────────
+const STORAGE_KEY = 'tau_empire_units';
+const STORAGE_ID_KEY = 'tau_empire_next_id';
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function saveToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(units));
+    localStorage.setItem(STORAGE_ID_KEY, String(nextId));
+  } catch(e) { console.warn('localStorage vol of niet beschikbaar:', e); }
+}
+
+// ── Initialiseer units (localStorage → lege array, nooit de hardcoded lijst) ─
+let units = loadFromStorage() || [];
+let nextId = parseInt(localStorage.getItem(STORAGE_ID_KEY) || '10');
 let editId = null;
 let pendingImg = '';
+
+// ── BattleScribe / NewRecruit JSON parser ─────────────────────────────────────
+const CATEGORY_ROLE_MAP = {
+  'hq': 'HQ', 'commander': 'HQ', 'character': 'HQ', 'epic hero': 'HQ',
+  'battleline': 'Troops', 'troops': 'Troops',
+  'elite': 'Elite',
+  'fast attack': 'Fast Attack',
+  'heavy support': 'Heavy Support',
+  'dedicated transport': 'Heavy Support',
+  'fortification': 'Heavy Support',
+  'lord of war': 'Heavy Support',
+};
+
+function guessRole(categories) {
+  for (const cat of categories) {
+    const n = (cat.name || '').toLowerCase();
+    if (CATEGORY_ROLE_MAP[n]) return CATEGORY_ROLE_MAP[n];
+  }
+  return 'Troops';
+}
+
+function getCharVal(profile, name) {
+  const c = (profile.characteristics || []).find(x => x.name === name);
+  return c ? (c['$text'] || c.text || '') : '';
+}
+
+function parseBattleScribe(json) {
+  const roster = json.roster;
+  if (!roster) throw new Error('Geen geldig roster gevonden in het JSON-bestand.');
+
+  const imported = [];
+  const forces = roster.forces || [];
+
+  for (const force of forces) {
+    for (const sel of (force.selections || [])) {
+      // Sla configuratie-entries over
+      const primaryCat = (sel.categories || []).find(c => c.primary);
+      if (primaryCat && primaryCat.name === 'Configuration') continue;
+      if (sel.type === 'upgrade' && !(sel.profiles || []).length) continue;
+
+      const name = sel.name;
+      const pts = (sel.costs || []).find(c => c.name === 'pts')?.value || 0;
+      const cats = sel.categories || [];
+      const role = guessRole(cats);
+      const keywords = cats.map(c => c.name).filter(n =>
+        !['Configuration','Unit','Reference','Illegal Units','Uncategorized'].includes(n)
+      );
+
+      // Wapens: verzamel alle profiles van type Ranged/Melee Weapons
+      const weapons = [];
+      const abilities = [];
+
+      // Rules → abilities
+      for (const r of (sel.rules || [])) {
+        if (r.name && !r.hidden) abilities.push(r.name);
+      }
+
+      // Profiles van de unit zelf
+      const allProfiles = [];
+      function collectProfiles(node) {
+        for (const p of (node.profiles || [])) allProfiles.push(p);
+        for (const s of (node.selections || [])) collectProfiles(s);
+      }
+      collectProfiles(sel);
+
+      let move = '', t = 0, save = '', w = 1, ld = 7, oc = 0;
+
+      for (const p of allProfiles) {
+        const tn = (p.typeName || '').toLowerCase();
+        if (tn.includes('unit') || tn.includes('model') || tn === '') {
+          const m = getCharVal(p, 'M');
+          if (m) move = m;
+          const tv = getCharVal(p, 'T');
+          if (tv) t = parseInt(tv) || 0;
+          const sv = getCharVal(p, 'Sv');
+          if (sv) save = sv;
+          const wv = getCharVal(p, 'W');
+          if (wv) w = parseInt(wv) || 1;
+          const lv = getCharVal(p, 'Ld');
+          if (lv) ld = parseInt(lv) || 7;
+          const ov = getCharVal(p, 'OC');
+          if (ov) oc = parseInt(ov) || 0;
+        }
+        if (tn.includes('ranged') || tn.includes('melee') || tn.includes('weapon')) {
+          // Verwijder ➤ prefix en duplicaten
+          const wname = p.name.replace(/^[➤►▶→•\-\s]+/, '').trim();
+          if (wname && !weapons.includes(wname)) weapons.push(wname);
+        }
+        if (tn.includes('ability') || tn.includes('psychic') || tn.includes('special')) {
+          if (p.name && !abilities.includes(p.name)) abilities.push(p.name);
+        }
+      }
+
+      imported.push({
+        id: nextId++,
+        name, role, pts,
+        move: move || '—',
+        t, save: save || '—', w, ld, oc,
+        weapons, abilities, keywords, img: ''
+      });
+    }
+  }
+
+  return imported;
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const json = JSON.parse(ev.target.result);
+      const imported = parseBattleScribe(json);
+      if (!imported.length) { alert('Geen units gevonden in dit bestand.'); return; }
+
+      const mode = confirm(
+        `${imported.length} unit(s) gevonden.\n\nKlik OK om SAMEN te voegen met bestaande units.\nKlik Annuleren om bestaande units te VERVANGEN.`
+      );
+      if (mode) {
+        units = [...units, ...imported];
+      } else {
+        units = imported;
+      }
+      saveToStorage();
+      render();
+      alert(`✓ ${imported.length} unit(s) succesvol geïmporteerd!`);
+    } catch(e) {
+      alert('Fout bij het inlezen van het JSON-bestand:\n' + e.message);
+      console.error(e);
+    }
+    // Reset zodat hetzelfde bestand opnieuw geïmporteerd kan worden
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function clearAll() {
+  if (confirm('Weet je zeker dat je ALLE units wilt verwijderen?')) {
+    units = [];
+    saveToStorage();
+    render();
+  }
+}
 
 function render() {
   const q = document.getElementById('search').value.toLowerCase();
@@ -879,11 +1042,12 @@ function saveUnit() {
   };
   if (editId) { const i = units.findIndex(u=>u.id===editId); if(i>-1) units[i]=data; }
   else units.push(data);
+  saveToStorage();
   closeModal(); render();
 }
 
 function deleteUnit(id) {
-  if (confirm('Unit verwijderen?')) { units = units.filter(u=>u.id!==id); render(); }
+  if (confirm('Unit verwijderen?')) { units = units.filter(u=>u.id!==id); saveToStorage(); render(); }
 }
 function editUnit(id) { const u = units.find(u=>u.id===id); if(u) openModal(u); }
 
