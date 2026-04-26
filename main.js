@@ -25,7 +25,6 @@ function saveToStorage() {
   } catch(e) { console.warn('localStorage vol of niet beschikbaar:', e); }
 }
 
-// ── Initialiseer units (localStorage → lege array, nooit de hardcoded lijst) ─
 let units = loadFromStorage() || [];
 let nextId = parseInt(localStorage.getItem(STORAGE_ID_KEY) || '10');
 let editId = null;
@@ -42,6 +41,19 @@ const CATEGORY_ROLE_MAP = {
   'lord of war': 'Heavy Support',
 };
 
+// Categories that mean this is a real deployable unit (primary category check)
+const UNIT_PRIMARY_CATS = new Set([
+  'hq','commander','character','epic hero',
+  'battleline','troops',
+  'elite',
+  'fast attack',
+  'heavy support',
+  'dedicated transport',
+  'fortification',
+  'lord of war',
+  'vehicle','monster','beast','mounted','swarm','infantry','drone','walker',
+]);
+
 function guessRole(categories) {
   for (const cat of categories) {
     const n = (cat.name || '').toLowerCase();
@@ -55,6 +67,34 @@ function getCharVal(profile, name) {
   return c ? (c['$text'] || c.text || '') : '';
 }
 
+// Returns true if this selection is a real unit (not wargear/upgrade noise)
+function isRealUnit(sel) {
+  if (sel.type === 'model') return true;
+  if (sel.type === 'unit') return true;
+  // 'upgrade' or 'mount' entries at top level: only keep if they have a
+  // primary category that matches a known unit category
+  const primary = (sel.categories || []).find(c => c.primary);
+  if (!primary) return false;
+  const pn = (primary.name || '').toLowerCase();
+  // Skip Configuration entries
+  if (pn === 'configuration') return false;
+  return UNIT_PRIMARY_CATS.has(pn);
+}
+
+function parseWeaponProfile(profile) {
+  return {
+    name: profile.name.replace(/^[➤►▶→•\-\s]+/, '').trim(),
+    range: getCharVal(profile, 'Range') || '—',
+    a:     getCharVal(profile, 'A')     || '—',
+    bs:    getCharVal(profile, 'BS')    || '—',
+    ws:    getCharVal(profile, 'WS')    || '',
+    s:     getCharVal(profile, 'S')     || '—',
+    ap:    getCharVal(profile, 'AP')    || '—',
+    d:     getCharVal(profile, 'D')     || '—',
+    keywords: getCharVal(profile, 'Keywords') || '',
+  };
+}
+
 function parseBattleScribe(json) {
   const roster = json.roster;
   if (!roster) throw new Error('Geen geldig roster gevonden in het JSON-bestand.');
@@ -64,10 +104,7 @@ function parseBattleScribe(json) {
 
   for (const force of forces) {
     for (const sel of (force.selections || [])) {
-      // Sla configuratie-entries over
-      const primaryCat = (sel.categories || []).find(c => c.primary);
-      if (primaryCat && primaryCat.name === 'Configuration') continue;
-      if (sel.type === 'upgrade' && !(sel.profiles || []).length) continue;
+      if (!isRealUnit(sel)) continue;
 
       const name = sel.name;
       const pts = (sel.costs || []).find(c => c.name === 'pts')?.value || 0;
@@ -77,16 +114,13 @@ function parseBattleScribe(json) {
         !['Configuration','Unit','Reference','Illegal Units','Uncategorized'].includes(n)
       );
 
-      // Wapens: verzamel alle profiles van type Ranged/Melee Weapons
-      const weapons = [];
+      const weaponProfiles = []; // full profile objects {name, range, a, bs, s, ap, d, keywords}
       const abilities = [];
 
-      // Rules → abilities
       for (const r of (sel.rules || [])) {
         if (r.name && !r.hidden) abilities.push(r.name);
       }
 
-      // Profiles van de unit zelf
       const allProfiles = [];
       function collectProfiles(node) {
         for (const p of (node.profiles || [])) allProfiles.push(p);
@@ -98,13 +132,20 @@ function parseBattleScribe(json) {
 
       for (const p of allProfiles) {
         const tn = (p.typeName || '').toLowerCase();
-        if (tn.includes('unit') || tn.includes('model') || tn === '') {
+
+        // ── Unit stat block ──────────────────────────────────────────────────
+        // Match any profile that is NOT a weapon/ability profile
+        if (!tn.includes('weapon') && !tn.includes('ability') &&
+            !tn.includes('psychic') && !tn.includes('special')) {
           const m = getCharVal(p, 'M');
-          if (m) move = m;
+          if (m && !move) move = m;
           const tv = getCharVal(p, 'T');
           if (tv) t = parseInt(tv) || 0;
-          const sv = getCharVal(p, 'Sv');
-          if (sv) save = sv;
+
+          // FIX: Sv can be labelled 'Sv' or 'Save'
+          const sv = getCharVal(p, 'Sv') || getCharVal(p, 'Save');
+          if (sv && !save) save = sv;
+
           const wv = getCharVal(p, 'W');
           if (wv) w = parseInt(wv) || 1;
           const lv = getCharVal(p, 'Ld');
@@ -112,11 +153,15 @@ function parseBattleScribe(json) {
           const ov = getCharVal(p, 'OC');
           if (ov) oc = parseInt(ov) || 0;
         }
+
+        // ── Weapon profiles ──────────────────────────────────────────────────
         if (tn.includes('ranged') || tn.includes('melee') || tn.includes('weapon')) {
-          // Verwijder ➤ prefix en duplicaten
-          const wname = p.name.replace(/^[➤►▶→•\-\s]+/, '').trim();
-          if (wname && !weapons.includes(wname)) weapons.push(wname);
+          const wp = parseWeaponProfile(p);
+          const already = weaponProfiles.find(x => x.name === wp.name);
+          if (!already) weaponProfiles.push(wp);
         }
+
+        // ── Ability profiles ─────────────────────────────────────────────────
         if (tn.includes('ability') || tn.includes('psychic') || tn.includes('special')) {
           if (p.name && !abilities.includes(p.name)) abilities.push(p.name);
         }
@@ -127,7 +172,10 @@ function parseBattleScribe(json) {
         name, role, pts,
         move: move || '—',
         t, save: save || '—', w, ld, oc,
-        weapons, abilities, keywords, img: ''
+        weaponProfiles,
+        // keep simple name list for backwards compat
+        weapons: weaponProfiles.map(wp => wp.name),
+        abilities, keywords, img: ''
       });
     }
   }
@@ -160,7 +208,6 @@ function importJSON(event) {
       alert('Fout bij het inlezen van het JSON-bestand:\n' + e.message);
       console.error(e);
     }
-    // Reset zodat hetzelfde bestand opnieuw geïmporteerd kan worden
     event.target.value = '';
   };
   reader.readAsText(file);
@@ -174,6 +221,44 @@ function clearAll() {
   }
 }
 
+// ── Weapon detail modal ───────────────────────────────────────────────────────
+function openWeaponModal(unitId) {
+  const u = units.find(u => u.id === unitId);
+  if (!u) return;
+  const profiles = u.weaponProfiles || u.weapons.map(n => ({ name: n }));
+  if (!profiles.length) return;
+
+  const rows = profiles.map(wp => {
+    const isMelee = (wp.range || '').toLowerCase() === 'melee';
+    const bsLabel = isMelee ? 'WS' : 'BS';
+    const bsVal   = (isMelee && wp.ws) ? wp.ws : (wp.bs || '—');
+    return `
+      <tr>
+        <td class="wp-name">${wp.name}</td>
+        <td>${wp.range || '—'}</td>
+        <td>${wp.a || '—'}</td>
+        <td>${bsVal}</td>
+        <td>${wp.s || '—'}</td>
+        <td>${wp.ap || '—'}</td>
+        <td>${wp.d || '—'}</td>
+        <td class="wp-kw">${wp.keywords || '—'}</td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('weapon-modal-title').textContent = u.name + ' — Wapens';
+  document.getElementById('weapon-table-body').innerHTML = rows;
+  document.getElementById('weapon-modal-overlay').classList.add('open');
+}
+
+function closeWeaponModal() {
+  document.getElementById('weapon-modal-overlay').classList.remove('open');
+}
+
+document.getElementById('weapon-modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeWeaponModal();
+});
+
+// ── Render ────────────────────────────────────────────────────────────────────
 function render() {
   const q = document.getElementById('search').value.toLowerCase();
   const rf = document.getElementById('role-filter').value;
@@ -197,8 +282,10 @@ function render() {
   grid.innerHTML = list.map(u => {
     const rc = ROLE_CLASS[u.role] || 'role-troops';
     const col = ROLE_COLOR[u.role] || '#6ec6e8';
-    const maxW = Math.max(u.w, 1);
-    const healthPct = 100;
+    const hasWeaponProfiles = (u.weaponProfiles && u.weaponProfiles.length) || (u.weapons && u.weapons.length);
+    const weaponBtnHtml = hasWeaponProfiles
+      ? `<button class="icon-btn weapon-btn" onclick="openWeaponModal(${u.id})" title="Bekijk wapenprofiel">⚙</button>`
+      : '';
     return `
     <div class="card" style="--role-color:${col}">
       <div class="card-body">
@@ -218,16 +305,17 @@ function render() {
 
         <div class="health-row">
           <div class="health-label"><span>Health</span><span>${u.w} W</span></div>
-          <div class="health-bar"><div class="health-fill" style="width:${healthPct}%"></div></div>
+          <div class="health-bar"><div class="health-fill" style="width:100%"></div></div>
         </div>
 
-        ${u.weapons.length ? `<div class="section-label">Wapens & aanvallen</div><div class="weapons-list">${u.weapons.map(w=>`<span class="weapon-tag">${w}</span>`).join('')}</div>` : ''}
-        ${u.abilities.length ? `<div class="section-label">Abilities</div><div class="abilities-list">${u.abilities.map(a=>`<span class="ability-tag">${a}</span>`).join('')}</div>` : ''}
-        ${u.keywords.length ? `<div class="section-label">Keywords</div><div class="keywords-list">${u.keywords.map(k=>`<span class="keyword-tag">${k}</span>`).join('')}</div>` : ''}
+        ${u.weapons && u.weapons.length ? `<div class="section-label">Wapens & aanvallen</div><div class="weapons-list">${u.weapons.map(w=>`<span class="weapon-tag" onclick="openWeaponModal(${u.id})" title="Bekijk profielen" style="cursor:pointer">${w}</span>`).join('')}</div>` : ''}
+        ${u.abilities && u.abilities.length ? `<div class="section-label">Abilities</div><div class="abilities-list">${u.abilities.map(a=>`<span class="ability-tag">${a}</span>`).join('')}</div>` : ''}
+        ${u.keywords && u.keywords.length ? `<div class="section-label">Keywords</div><div class="keywords-list">${u.keywords.map(k=>`<span class="keyword-tag">${k}</span>`).join('')}</div>` : ''}
 
         <div class="card-footer">
           <div class="pts-display">${u.pts}<small>pts</small></div>
           <div class="card-actions">
+            ${weaponBtnHtml}
             <button class="icon-btn del" onclick="deleteUnit(${u.id})" title="Verwijderen">✕</button>
           </div>
         </div>
@@ -241,7 +329,6 @@ function render() {
 function updateSummary() {
   const totalPts = units.reduce((s,u) => s + (Number(u.pts)||0), 0);
   const totalOC = units.reduce((s,u) => s + (Number(u.oc)||0), 0);
-  const roles = [...new Set(units.map(u=>u.role))];
 
   document.getElementById('nav-units').textContent = units.length;
   document.getElementById('nav-pts').textContent = totalPts;
@@ -284,6 +371,7 @@ function closeModal() {
 function saveUnit() {
   const name = document.getElementById('f-name').value.trim();
   if (!name) { alert('Geef de unit een naam.'); return; }
+  const weaponNames = document.getElementById('f-weapons').value.split(',').map(s=>s.trim()).filter(Boolean);
   const data = {
     id: editId || nextId++,
     name,
@@ -295,7 +383,8 @@ function saveUnit() {
     w: parseInt(document.getElementById('f-w').value) || 1,
     ld: parseInt(document.getElementById('f-ld').value) || 7,
     oc: parseInt(document.getElementById('f-oc').value) || 0,
-    weapons: document.getElementById('f-weapons').value.split(',').map(s=>s.trim()).filter(Boolean),
+    weapons: weaponNames,
+    weaponProfiles: weaponNames.map(n => ({ name: n })),
     abilities: document.getElementById('f-abilities').value.split(',').map(s=>s.trim()).filter(Boolean),
     keywords: document.getElementById('f-keywords').value.split(',').map(s=>s.trim()).filter(Boolean),
   };

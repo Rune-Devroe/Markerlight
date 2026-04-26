@@ -14,6 +14,8 @@
   <div class="nav-stats">
     <div>UNITS: <span id="nav-units">0</span></div>
     <div>PUNTEN: <span id="nav-pts">0</span></div>
+    <div>OC: <span id="nav-oc">0</span></div>
+  </div>
   <div style="display:flex;gap:8px;align-items:center">
     <button class="btn" onclick="document.getElementById('json-input').click()" title="Importeer BattleScribe/NewRecruit JSON">⬆ JSON importeren</button>
     <button class="btn btn-danger" onclick="clearAll()" title="Verwijder alle units">✕ Alles wissen</button>
@@ -49,6 +51,75 @@
 </div>
 
 <div class="grid" id="grid"></div>
+
+<!-- Unit add/edit modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2 id="modal-title">Nieuwe unit toevoegen</h2>
+    <div class="form-section">Identiteit</div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Naam</label>
+        <input type="text" id="f-name" placeholder="bijv. Crisis Battlesuit">
+      </div>
+      <div class="form-row">
+        <label>Rol</label>
+        <select id="f-role">
+          <option value="HQ">HQ</option>
+          <option value="Troops" selected>Troops</option>
+          <option value="Elite">Elite</option>
+          <option value="Fast Attack">Fast Attack</option>
+          <option value="Heavy Support">Heavy Support</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-section">Statistieken</div>
+    <div class="form-grid-3">
+      <div class="form-row"><label>Move</label><input type="text" id="f-move" placeholder="bijv. 10&quot;"></div>
+      <div class="form-row"><label>Toughness</label><input type="number" id="f-t" min="1"></div>
+      <div class="form-row"><label>Save</label><input type="text" id="f-save" placeholder="bijv. 3+"></div>
+      <div class="form-row"><label>Wounds</label><input type="number" id="f-w" min="1"></div>
+      <div class="form-row"><label>Leadership</label><input type="number" id="f-ld" min="1"></div>
+      <div class="form-row"><label>OC</label><input type="number" id="f-oc" min="0"></div>
+    </div>
+    <div class="form-section">Uitrusting & punten</div>
+    <div class="form-row"><label>Wapens (komma-gescheiden)</label><input type="text" id="f-weapons" placeholder="Pulse Rifle, Fusion Blaster"></div>
+    <div class="form-row"><label>Abilities (komma-gescheiden)</label><input type="text" id="f-abilities" placeholder="Markerlight, For The Greater Good"></div>
+    <div class="form-row"><label>Keywords (komma-gescheiden)</label><input type="text" id="f-keywords" placeholder="Fly, Battlesuit"></div>
+    <div class="form-row"><label>Punten</label><input type="number" id="f-pts" min="0"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Annuleren</button>
+      <button class="btn btn-primary" onclick="saveUnit()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Weapon profile modal -->
+<div class="modal-overlay" id="weapon-modal-overlay">
+  <div class="modal modal-wide">
+    <h2 id="weapon-modal-title">Wapenprofiel</h2>
+    <div class="weapon-table-wrap">
+      <table class="weapon-table">
+        <thead>
+          <tr>
+            <th>Wapen</th>
+            <th>Range</th>
+            <th>A</th>
+            <th>BS/WS</th>
+            <th>S</th>
+            <th>AP</th>
+            <th>D</th>
+            <th>Keywords</th>
+          </tr>
+        </thead>
+        <tbody id="weapon-table-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeWeaponModal()">Sluiten</button>
+    </div>
+  </div>
+</div>
 
 <script src="main.js"></script>
 </body>
