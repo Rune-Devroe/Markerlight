@@ -1,0 +1,346 @@
+const ROLE_CLASS = {
+  HQ: 'role-hq', Troops: 'role-troops', Elite: 'role-elite',
+  'Fast Attack': 'role-fast', 'Heavy Support': 'role-heavy'
+};
+const ROLE_COLOR = {
+  HQ: '#e8c06a', Troops: '#6ec6e8', Elite: '#c084fc',
+  'Fast Attack': '#86efac', 'Heavy Support': '#f87171'
+};
+
+// ── localStorage helpers ──────────────────────────────────────────────────────
+const STORAGE_KEY = 'tau_empire_units';
+const STORAGE_ID_KEY = 'tau_empire_next_id';
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function saveToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(units));
+    localStorage.setItem(STORAGE_ID_KEY, String(nextId));
+  } catch(e) { console.warn('localStorage vol of niet beschikbaar:', e); }
+}
+
+// ── Initialiseer units (localStorage → lege array, nooit de hardcoded lijst) ─
+let units = loadFromStorage() || [];
+let nextId = parseInt(localStorage.getItem(STORAGE_ID_KEY) || '10');
+let editId = null;
+let pendingImg = '';
+
+// ── BattleScribe / NewRecruit JSON parser ─────────────────────────────────────
+const CATEGORY_ROLE_MAP = {
+  'hq': 'HQ', 'commander': 'HQ', 'character': 'HQ', 'epic hero': 'HQ',
+  'battleline': 'Troops', 'troops': 'Troops',
+  'elite': 'Elite',
+  'fast attack': 'Fast Attack',
+  'heavy support': 'Heavy Support',
+  'dedicated transport': 'Heavy Support',
+  'fortification': 'Heavy Support',
+  'lord of war': 'Heavy Support',
+};
+
+function guessRole(categories) {
+  for (const cat of categories) {
+    const n = (cat.name || '').toLowerCase();
+    if (CATEGORY_ROLE_MAP[n]) return CATEGORY_ROLE_MAP[n];
+  }
+  return 'Troops';
+}
+
+function getCharVal(profile, name) {
+  const c = (profile.characteristics || []).find(x => x.name === name);
+  return c ? (c['$text'] || c.text || '') : '';
+}
+
+function parseBattleScribe(json) {
+  const roster = json.roster;
+  if (!roster) throw new Error('Geen geldig roster gevonden in het JSON-bestand.');
+
+  const imported = [];
+  const forces = roster.forces || [];
+
+  for (const force of forces) {
+    for (const sel of (force.selections || [])) {
+      // Sla configuratie-entries over
+      const primaryCat = (sel.categories || []).find(c => c.primary);
+      if (primaryCat && primaryCat.name === 'Configuration') continue;
+      if (sel.type === 'upgrade' && !(sel.profiles || []).length) continue;
+
+      const name = sel.name;
+      const pts = (sel.costs || []).find(c => c.name === 'pts')?.value || 0;
+      const cats = sel.categories || [];
+      const role = guessRole(cats);
+      const keywords = cats.map(c => c.name).filter(n =>
+        !['Configuration','Unit','Reference','Illegal Units','Uncategorized'].includes(n)
+      );
+
+      // Wapens: verzamel alle profiles van type Ranged/Melee Weapons
+      const weapons = [];
+      const abilities = [];
+
+      // Rules → abilities
+      for (const r of (sel.rules || [])) {
+        if (r.name && !r.hidden) abilities.push(r.name);
+      }
+
+      // Profiles van de unit zelf
+      const allProfiles = [];
+      function collectProfiles(node) {
+        for (const p of (node.profiles || [])) allProfiles.push(p);
+        for (const s of (node.selections || [])) collectProfiles(s);
+      }
+      collectProfiles(sel);
+
+      let move = '', t = 0, save = '', w = 1, ld = 7, oc = 0;
+
+      for (const p of allProfiles) {
+        const tn = (p.typeName || '').toLowerCase();
+        if (tn.includes('unit') || tn.includes('model') || tn === '') {
+          const m = getCharVal(p, 'M');
+          if (m) move = m;
+          const tv = getCharVal(p, 'T');
+          if (tv) t = parseInt(tv) || 0;
+          const sv = getCharVal(p, 'Sv');
+          if (sv) save = sv;
+          const wv = getCharVal(p, 'W');
+          if (wv) w = parseInt(wv) || 1;
+          const lv = getCharVal(p, 'Ld');
+          if (lv) ld = parseInt(lv) || 7;
+          const ov = getCharVal(p, 'OC');
+          if (ov) oc = parseInt(ov) || 0;
+        }
+        if (tn.includes('ranged') || tn.includes('melee') || tn.includes('weapon')) {
+          // Verwijder ➤ prefix en duplicaten
+          const wname = p.name.replace(/^[➤►▶→•\-\s]+/, '').trim();
+          if (wname && !weapons.includes(wname)) weapons.push(wname);
+        }
+        if (tn.includes('ability') || tn.includes('psychic') || tn.includes('special')) {
+          if (p.name && !abilities.includes(p.name)) abilities.push(p.name);
+        }
+      }
+
+      imported.push({
+        id: nextId++,
+        name, role, pts,
+        move: move || '—',
+        t, save: save || '—', w, ld, oc,
+        weapons, abilities, keywords, img: ''
+      });
+    }
+  }
+
+  return imported;
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const json = JSON.parse(ev.target.result);
+      const imported = parseBattleScribe(json);
+      if (!imported.length) { alert('Geen units gevonden in dit bestand.'); return; }
+
+      const mode = confirm(
+        `${imported.length} unit(s) gevonden.\n\nKlik OK om SAMEN te voegen met bestaande units.\nKlik Annuleren om bestaande units te VERVANGEN.`
+      );
+      if (mode) {
+        units = [...units, ...imported];
+      } else {
+        units = imported;
+      }
+      saveToStorage();
+      render();
+      alert(`✓ ${imported.length} unit(s) succesvol geïmporteerd!`);
+    } catch(e) {
+      alert('Fout bij het inlezen van het JSON-bestand:\n' + e.message);
+      console.error(e);
+    }
+    // Reset zodat hetzelfde bestand opnieuw geïmporteerd kan worden
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function clearAll() {
+  if (confirm('Weet je zeker dat je ALLE units wilt verwijderen?')) {
+    units = [];
+    saveToStorage();
+    render();
+  }
+}
+
+function render() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const rf = document.getElementById('role-filter').value;
+  const sort = document.getElementById('sort').value;
+
+  let list = units.filter(u => {
+    return (!q || u.name.toLowerCase().includes(q)) && (!rf || u.role === rf);
+  });
+
+  if (sort === 'pts') list.sort((a,b) => b.pts - a.pts);
+  else if (sort === 'oc') list.sort((a,b) => b.oc - a.oc);
+  else if (sort === 'role') list.sort((a,b) => a.role.localeCompare(b.role));
+  else list.sort((a,b) => a.name.localeCompare(b.name));
+
+  const grid = document.getElementById('grid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty">// geen units gevonden //</div>';
+    updateSummary(); return;
+  }
+
+  grid.innerHTML = list.map(u => {
+    const rc = ROLE_CLASS[u.role] || 'role-troops';
+    const col = ROLE_COLOR[u.role] || '#6ec6e8';
+    const maxW = Math.max(u.w, 1);
+    const healthPct = 100;
+    return `
+    <div class="card" style="--role-color:${col}">
+      ${u.img
+        ? `<div class="card-img-wrap"><img src="${u.img}" alt="${u.name}" loading="lazy"></div>`
+        : `<div class="card-img-placeholder">${u.name.slice(0,2).toUpperCase()}</div>`
+      }
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-name">${u.name}</div>
+          <span class="role-badge ${rc}">${u.role}</span>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box"><div class="stat-val">${u.move||'—'}</div><div class="stat-lbl">Move</div></div>
+          <div class="stat-box"><div class="stat-val">${u.t||'—'}</div><div class="stat-lbl">T</div></div>
+          <div class="stat-box"><div class="stat-val">${u.save||'—'}</div><div class="stat-lbl">Save</div></div>
+          <div class="stat-box"><div class="stat-val">${u.w||'—'}</div><div class="stat-lbl">W</div></div>
+          <div class="stat-box"><div class="stat-val">${u.ld||'—'}</div><div class="stat-lbl">LD</div></div>
+          <div class="stat-box"><div class="stat-val">${u.oc||0}</div><div class="stat-lbl">OC</div></div>
+        </div>
+
+        <div class="health-row">
+          <div class="health-label"><span>Health</span><span>${u.w} W</span></div>
+          <div class="health-bar"><div class="health-fill" style="width:${healthPct}%"></div></div>
+        </div>
+
+        ${u.weapons.length ? `<div class="section-label">Wapens & aanvallen</div><div class="weapons-list">${u.weapons.map(w=>`<span class="weapon-tag">${w}</span>`).join('')}</div>` : ''}
+        ${u.abilities.length ? `<div class="section-label">Abilities</div><div class="abilities-list">${u.abilities.map(a=>`<span class="ability-tag">${a}</span>`).join('')}</div>` : ''}
+        ${u.keywords.length ? `<div class="section-label">Keywords</div><div class="keywords-list">${u.keywords.map(k=>`<span class="keyword-tag">${k}</span>`).join('')}</div>` : ''}
+
+        <div class="card-footer">
+          <div class="pts-display">${u.pts}<small>pts</small></div>
+          <div class="card-actions">
+            <button class="icon-btn" onclick="editUnit(${u.id})" title="Bewerken">✎</button>
+            <button class="icon-btn del" onclick="deleteUnit(${u.id})" title="Verwijderen">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  updateSummary();
+}
+
+function updateSummary() {
+  const totalPts = units.reduce((s,u) => s + (Number(u.pts)||0), 0);
+  const totalOC = units.reduce((s,u) => s + (Number(u.oc)||0), 0);
+  const roles = [...new Set(units.map(u=>u.role))];
+
+  document.getElementById('nav-units').textContent = units.length;
+  document.getElementById('nav-pts').textContent = totalPts;
+  document.getElementById('nav-oc').textContent = totalOC;
+
+  const roleCount = {};
+  units.forEach(u => roleCount[u.role] = (roleCount[u.role]||0)+1);
+
+  document.getElementById('summary-bar').innerHTML = `
+    <div class="sum-card"><div class="sum-val">${units.length}</div><div class="sum-lbl">Totaal units</div></div>
+    <div class="sum-card"><div class="sum-val">${totalPts}</div><div class="sum-lbl">Totaal punten</div></div>
+    <div class="sum-card"><div class="sum-val">${totalOC}</div><div class="sum-lbl">OC totaal</div></div>
+    <div class="sum-card"><div class="sum-val">${roleCount['HQ']||0}</div><div class="sum-lbl">HQ</div></div>
+    <div class="sum-card"><div class="sum-val">${roleCount['Troops']||0}</div><div class="sum-lbl">Troops</div></div>
+    <div class="sum-card"><div class="sum-val">${(roleCount['Elite']||0)+(roleCount['Fast Attack']||0)+(roleCount['Heavy Support']||0)}</div><div class="sum-lbl">Andere</div></div>
+  `;
+}
+
+function openModal(u) {
+  editId = u ? u.id : null;
+  pendingImg = u?.img || '';
+  document.getElementById('modal-title').textContent = u ? 'Unit bewerken' : 'Nieuwe unit toevoegen';
+  document.getElementById('f-name').value = u?.name || '';
+  document.getElementById('f-role').value = u?.role || 'Troops';
+  document.getElementById('f-move').value = u?.move || '';
+  document.getElementById('f-t').value = u?.t || '';
+  document.getElementById('f-save').value = u?.save || '';
+  document.getElementById('f-w').value = u?.w || '';
+  document.getElementById('f-ld').value = u?.ld || '';
+  document.getElementById('f-oc').value = u?.oc || '';
+  document.getElementById('f-weapons').value = u?.weapons?.join(', ') || '';
+  document.getElementById('f-pts').value = u?.pts || '';
+  document.getElementById('f-abilities').value = u?.abilities?.join(', ') || '';
+  document.getElementById('f-keywords').value = u?.keywords?.join(', ') || '';
+  const prev = document.getElementById('img-preview');
+  if (u?.img) { prev.src = u.img; prev.style.display = 'block'; }
+  else { prev.src = ''; prev.style.display = 'none'; }
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  pendingImg = ''; editId = null;
+  document.getElementById('img-preview').style.display = 'none';
+  document.getElementById('img-preview').src = '';
+}
+
+function saveUnit() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { alert('Geef de unit een naam.'); return; }
+  const data = {
+    id: editId || nextId++,
+    name,
+    role: document.getElementById('f-role').value,
+    pts: parseInt(document.getElementById('f-pts').value) || 0,
+    move: document.getElementById('f-move').value || '—',
+    t: parseInt(document.getElementById('f-t').value) || 0,
+    save: document.getElementById('f-save').value || '—',
+    w: parseInt(document.getElementById('f-w').value) || 1,
+    ld: parseInt(document.getElementById('f-ld').value) || 7,
+    oc: parseInt(document.getElementById('f-oc').value) || 0,
+    weapons: document.getElementById('f-weapons').value.split(',').map(s=>s.trim()).filter(Boolean),
+    abilities: document.getElementById('f-abilities').value.split(',').map(s=>s.trim()).filter(Boolean),
+    keywords: document.getElementById('f-keywords').value.split(',').map(s=>s.trim()).filter(Boolean),
+    img: pendingImg
+  };
+  if (editId) { const i = units.findIndex(u=>u.id===editId); if(i>-1) units[i]=data; }
+  else units.push(data);
+  saveToStorage();
+  closeModal(); render();
+}
+
+function deleteUnit(id) {
+  if (confirm('Unit verwijderen?')) { units = units.filter(u=>u.id!==id); saveToStorage(); render(); }
+}
+function editUnit(id) { const u = units.find(u=>u.id===id); if(u) openModal(u); }
+
+function previewImg(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 5*1024*1024) { alert('Afbeelding mag max 5MB zijn.'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    pendingImg = ev.target.result;
+    const prev = document.getElementById('img-preview');
+    prev.src = pendingImg;
+    prev.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+render();
