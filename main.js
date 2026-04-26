@@ -202,10 +202,6 @@ function render() {
     const healthPct = 100;
     return `
     <div class="card" style="--role-color:${col}">
-      ${u.img
-        ? `<div class="card-img-wrap"><img src="${u.img}" alt="${u.name}" loading="lazy"></div>`
-        : `<div class="card-img-placeholder">${u.name.slice(0,2).toUpperCase()}</div>`
-      }
       <div class="card-body">
         <div class="card-top">
           <div class="card-name">${u.name}</div>
@@ -233,7 +229,6 @@ function render() {
         <div class="card-footer">
           <div class="pts-display">${u.pts}<small>pts</small></div>
           <div class="card-actions">
-            <button class="icon-btn" onclick="editUnit(${u.id})" title="Bewerken">✎</button>
             <button class="icon-btn del" onclick="deleteUnit(${u.id})" title="Verwijderen">✕</button>
           </div>
         </div>
@@ -259,7 +254,6 @@ function updateSummary() {
   document.getElementById('summary-bar').innerHTML = `
     <div class="sum-card"><div class="sum-val">${units.length}</div><div class="sum-lbl">Totaal units</div></div>
     <div class="sum-card"><div class="sum-val">${totalPts}</div><div class="sum-lbl">Totaal punten</div></div>
-    <div class="sum-card"><div class="sum-val">${totalOC}</div><div class="sum-lbl">OC totaal</div></div>
     <div class="sum-card"><div class="sum-val">${roleCount['HQ']||0}</div><div class="sum-lbl">HQ</div></div>
     <div class="sum-card"><div class="sum-val">${roleCount['Troops']||0}</div><div class="sum-lbl">Troops</div></div>
     <div class="sum-card"><div class="sum-val">${(roleCount['Elite']||0)+(roleCount['Fast Attack']||0)+(roleCount['Heavy Support']||0)}</div><div class="sum-lbl">Andere</div></div>
