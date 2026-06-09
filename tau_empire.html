@@ -3,124 +3,1099 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Markerlight</title>
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<title>T'au Empire — Army Hub</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap');
+
+  :root {
+    --tau: #206173;
+    --tau-dark: #143f4d;
+    --tau-light: #2e8a9e;
+    --tau-glow: #1f787f40;
+    --bg: #0e1419;
+    --bg2: #141c22;
+    --bg3: #1a252d;
+    --text: #e8edf0;
+    --text-muted: #7a9ba8;
+    --border: #206173;
+    --border-dim: #1e3d4a;
+    --accent: #d4a843;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── TOP BAR ── */
+  header {
+    background: var(--bg2);
+    border-bottom: 2px solid var(--tau);
+    padding: 0 2rem;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-emblem {
+    width: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--border-dim);
+    padding-right: 1rem;
+    margin-right: 1rem;
+  }
+
+  .emblem-svg { width: 36px; height: 36px; }
+
+  .header-title {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1rem 0;
+  }
+
+  .header-title h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .header-title span {
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--tau-light);
+    margin-top: 2px;
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .pts-total {
+    text-align: right;
+  }
+
+  .pts-total .num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .pts-total .lbl {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* ── SIDEBAR + MAIN ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: calc(100vh - 60px);
+  }
+
+  /* ── SIDEBAR ── */
+  nav {
+    background: var(--bg2);
+    border-right: 1px solid var(--border-dim);
+    padding: 1.5rem 0;
+    position: sticky;
+    top: 60px;
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+
+  .nav-section {
+    margin-bottom: 1.5rem;
+  }
+
+  .nav-section-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--tau);
+    padding: 0 1.25rem 0.5rem;
+    border-bottom: 1px solid var(--border-dim);
+    margin-bottom: 0.25rem;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.5rem 1.25rem;
+    cursor: pointer;
+    transition: background 0.15s, border-left-color 0.15s;
+    border-left: 3px solid transparent;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  .nav-item:hover {
+    background: var(--bg3);
+    color: var(--text);
+    border-left-color: var(--tau);
+  }
+
+  .nav-item.active {
+    background: var(--bg3);
+    color: var(--tau-light);
+    border-left-color: var(--tau);
+  }
+
+  .nav-pts {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: var(--accent);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+  }
+
+  .nav-badge {
+    font-size: 0.6rem;
+    background: var(--tau-dark);
+    color: var(--tau-light);
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── MAIN CONTENT ── */
+  main {
+    padding: 2rem;
+    overflow-y: auto;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-dim);
+  }
+
+  .section-header h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--tau-light);
+  }
+
+  .section-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-dim);
+  }
+
+  .section-count {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ── UNIT CARDS GRID ── */
+  .units-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .unit-card {
+    background: var(--bg2);
+    border: 1px solid var(--border-dim);
+    border-top: 2px solid var(--tau);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .unit-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--tau);
+    transform: scaleX(0);
+    transition: transform 0.2s;
+    transform-origin: left;
+  }
+
+  .unit-card:hover {
+    border-color: var(--tau);
+    background: var(--bg3);
+    transform: translateY(-2px);
+  }
+
+  .card-header {
+    background: linear-gradient(90deg, var(--tau-dark) 0%, var(--bg3) 100%);
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .card-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    line-height: 1.2;
+    max-width: 70%;
+  }
+
+  .card-pts {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .card-pts span {
+    font-size: 0.65rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 2px;
+  }
+
+  .card-body {
+    padding: 0.75rem 1rem;
+  }
+
+  .card-stats {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 0.6rem;
+  }
+
+  .stat-pill {
+    background: var(--bg);
+    border: 1px solid var(--border-dim);
+    font-size: 0.65rem;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    color: var(--text-muted);
+    display: flex;
+    gap: 4px;
+  }
+
+  .stat-pill .key {
+    color: var(--tau-light);
+    text-transform: uppercase;
+  }
+
+  .card-keywords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 0.5rem;
+  }
+
+  .kw-tag {
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    background: var(--tau-dark);
+    color: var(--tau-light);
+    border-radius: 2px;
+  }
+
+  .kw-tag.epic { background: #3d2a0a; color: var(--accent); }
+
+  .card-footer {
+    border-top: 1px solid var(--border-dim);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-models {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  .open-link {
+    font-size: 0.7rem;
+    color: var(--tau-light);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .open-link::after { content: '→'; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 3px; }
+
+  /* ── SECTION ANCHORS ── */
+  .anchor { scroll-margin-top: 80px; }
+
+  /* ── HAMBURGER BUTTON ── */
+  .menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    margin-left: auto;
+    flex-direction: column;
+    gap: 5px;
+    align-items: center;
+    justify-content: center;
+  }
+  .menu-btn span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: var(--text);
+    transition: transform 0.2s, opacity 0.2s;
+  }
+  .menu-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .menu-btn.open span:nth-child(2) { opacity: 0; }
+  .menu-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* ── NAV OVERLAY (mobile) ── */
+  .nav-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 90;
+  }
+  .nav-overlay.visible { display: block; }
+
+  /* ── BOTTOM SECTION TABS (mobile) ── */
+  .bottom-nav {
+    display: none;
+  }
+
+  /* ── RESPONSIVE BREAKPOINTS ── */
+
+  /* Tablet: hide sidebar label text, show icons only */
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: 52px 1fr;
+    }
+    nav {
+      padding: 1rem 0;
+      overflow: hidden;
+    }
+    .nav-section-label { display: none; }
+    .nav-item {
+      padding: 0.6rem 0;
+      justify-content: center;
+      font-size: 0;
+      gap: 0;
+      border-left-width: 2px;
+    }
+    .nav-item::before {
+      content: attr(data-icon);
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      letter-spacing: 0;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg);
+      white-space: nowrap;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .nav-item:hover::before,
+    .nav-item.active::before {
+      color: var(--tau-light);
+    }
+    .nav-pts, .nav-badge { display: none; }
+    .nav-section { margin-bottom: 0.25rem; }
+    main { padding: 1.25rem; }
+    .units-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  }
+
+  /* Mobile: slide-in drawer */
+  @media (max-width: 600px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+
+    .menu-btn { display: flex; }
+
+    nav {
+      position: fixed;
+      left: -260px;
+      top: 0;
+      width: 260px;
+      height: 100vh;
+      z-index: 95;
+      padding-top: 4rem;
+      transition: left 0.25s ease;
+      overflow-y: auto;
+    }
+    nav.open { left: 0; }
+
+    .nav-section-label { display: block; }
+    .nav-item {
+      padding: 0.55rem 1.25rem;
+      font-size: 0.85rem;
+      justify-content: flex-start;
+      writing-mode: unset;
+    }
+    .nav-item::before { display: none; }
+    .nav-pts, .nav-badge { display: inline; }
+    .nav-section { margin-bottom: 1.25rem; }
+
+    main {
+      padding: 1rem;
+      grid-column: 1;
+    }
+
+    header {
+      padding: 0 1rem;
+    }
+    .header-title h1 { font-size: 1.1rem; }
+    .header-title span { display: none; }
+    .header-emblem { width: 40px; }
+
+    .units-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .anchor { scroll-margin-top: 70px; }
+
+    /* bottom section strip */
+    .bottom-nav {
+      display: flex;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg2);
+      border-top: 1px solid var(--border-dim);
+      z-index: 80;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .bottom-nav a {
+      flex: 1;
+      min-width: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 4px;
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 0.55rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 600;
+      gap: 3px;
+      border-top: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .bottom-nav a .bn-icon {
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+    .bottom-nav a:hover,
+    .bottom-nav a.active {
+      color: var(--tau-light);
+      border-top-color: var(--tau);
+    }
+
+    main { padding-bottom: 4rem; }
+  }
+</style>
 </head>
 <body>
 
-<nav>
-  <div class="nav-logo">Markerlight</div>
-  <div class="nav-stats">
-    <div>UNITS: <span id="nav-units">0</span></div>
-    <div>PUNTEN: <span id="nav-pts">0</span></div>
-    <div>OC: <span id="nav-oc">0</span></div>
+<header>
+  <div class="header-emblem">
+    <svg class="emblem-svg" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="18,2 34,10 34,26 18,34 2,26 2,10" fill="none" stroke="#206173" stroke-width="1.5"/>
+      <polygon points="18,7 29,12.5 29,23.5 18,29 7,23.5 7,12.5" fill="#206173" opacity="0.3"/>
+      <line x1="18" y1="2" x2="18" y2="34" stroke="#206173" stroke-width="1"/>
+      <line x1="2" y1="10" x2="34" y2="26" stroke="#206173" stroke-width="1"/>
+      <line x1="34" y1="10" x2="2" y2="26" stroke="#206173" stroke-width="1"/>
+      <circle cx="18" cy="18" r="3" fill="#2e8a9e"/>
+    </svg>
   </div>
-  <div style="display:flex;gap:8px;align-items:center">
-    <button class="btn" onclick="document.getElementById('json-input').click()" title="Importeer BattleScribe/NewRecruit JSON">⬆ JSON importeren</button>
-    <button class="btn btn-danger" onclick="clearAll()" title="Verwijder alle units">✕ Alles wissen</button>
+  <div class="header-title">
+    <h1>T'au Empire</h1>
+    <span>Army Roster — Xenos</span>
   </div>
-  <input type="file" id="json-input" accept=".json" style="display:none" onchange="importJSON(event)">
-</nav>
-
-<div class="hero">
-  <h1>Markerlight</h1>
-  <div class="hero-line"></div>
-</div>
-
-<div class="summary-bar" id="summary-bar"></div>
-
-<div class="controls">
-  <div class="search-wrap">
-    <input type="text" id="search" placeholder="Zoek unit naam..." oninput="render()">
+  <div class="header-right">
+    <div class="pts-total">
+      <div class="num">1200</div>
+      <div class="lbl">Total pts</div>
+    </div>
   </div>
-  <select id="role-filter" onchange="render()">
-    <option value="">Alle rollen</option>
-    <option value="HQ">HQ</option>
-    <option value="Troops">Troops</option>
-    <option value="Elite">Elite</option>
-    <option value="Fast Attack">Fast Attack</option>
-    <option value="Heavy Support">Heavy Support</option>
-  </select>
-  <select id="sort" onchange="render()">
-    <option value="name">Sorteer: naam</option>
-    <option value="pts">Sorteer: punten</option>
-    <option value="oc">Sorteer: OC</option>
-    <option value="role">Sorteer: rol</option>
-  </select>
-</div>
+  <button class="menu-btn" id="menuBtn" aria-label="Open navigatie">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+<div class="nav-overlay" id="navOverlay"></div>
 
-<div class="grid" id="grid"></div>
+<div class="layout">
 
-<!-- Unit add/edit modal -->
-<div class="modal-overlay" id="modal-overlay">
-  <div class="modal">
-    <h2 id="modal-title">Nieuwe unit toevoegen</h2>
-    <div class="form-section">Identiteit</div>
-    <div class="form-grid">
-      <div class="form-row">
-        <label>Naam</label>
-        <input type="text" id="f-name" placeholder="bijv. Crisis Battlesuit">
+  <nav>
+    <div class="nav-section">
+      <div class="nav-section-label">Characters</div>
+      <a class="nav-item" href="#farsight" data-icon="Farsight">
+        <span>Commander Farsight</span>
+        <span class="nav-badge">Epic</span>
+        <span class="nav-pts">85</span>
+      </a>
+      <a class="nav-item" href="#twin-lance" data-icon="Twin Lance">
+        <span>The Twin Lance</span>
+        <span class="nav-badge">Epic</span>
+        <span class="nav-pts">185</span>
+      </a>
+      <a class="nav-item" href="#coldstar" data-icon="Coldstar">
+        <span>Coldstar Commander</span>
+        <span class="nav-pts">95</span>
+      </a>
+      <a class="nav-item" href="#enforcer" data-icon="Enforcer">
+        <span>Enforcer Commander</span>
+        <span class="nav-pts">100</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Battleline</div>
+      <a class="nav-item" href="#kroot" data-icon="Kroot">
+        <span>Kroot Carnivores</span>
+        <span class="nav-pts">65</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Reconnaissance</div>
+      <a class="nav-item" href="#pathfinder-1" data-icon="PF #1">
+        <span>Pathfinder Team #1</span>
+        <span class="nav-pts">90</span>
+      </a>
+      <a class="nav-item" href="#pathfinder-2" data-icon="PF #2">
+        <span>Pathfinder Team #2</span>
+        <span class="nav-pts">90</span>
+      </a>
+      <a class="nav-item" href="#stealth" data-icon="Stealth">
+        <span>Stealth Battlesuits</span>
+        <span class="nav-pts">100</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Crisis Battlesuits</div>
+      <a class="nav-item" href="#fireknife" data-icon="Fireknife">
+        <span>Fireknife</span>
+        <span class="nav-pts">120</span>
+      </a>
+      <a class="nav-item" href="#starscythe" data-icon="Starscythe">
+        <span>Starscythe</span>
+        <span class="nav-pts">110</span>
+      </a>
+      <a class="nav-item" href="#sunforge" data-icon="Sunforge">
+        <span>Sunforge</span>
+        <span class="nav-pts">140</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Heavy Support</div>
+      <a class="nav-item" href="#riptide" data-icon="Riptide">
+        <span>Riptide Battlesuit</span>
+        <span class="nav-pts">200</span>
+      </a>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- CHARACTERS -->
+    <div class="anchor" id="characters">
+      <div class="section-header">
+        <h2>Characters</h2>
+        <div class="section-line"></div>
+        <div class="section-count">4 units · 465 pts</div>
       </div>
-      <div class="form-row">
-        <label>Rol</label>
-        <select id="f-role">
-          <option value="HQ">HQ</option>
-          <option value="Troops" selected>Troops</option>
-          <option value="Elite">Elite</option>
-          <option value="Fast Attack">Fast Attack</option>
-          <option value="Heavy Support">Heavy Support</option>
-        </select>
+    </div>
+
+    <div class="units-grid">
+
+      <a class="unit-card" id="farsight" href="farsight.html">
+        <div class="card-header">
+          <div class="card-name">Commander Farsight</div>
+          <div class="card-pts">85 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 10"</div>
+            <div class="stat-pill"><span class="key">T</span> 5</div>
+            <div class="stat-pill"><span class="key">SV</span> 2+</div>
+            <div class="stat-pill"><span class="key">W</span> 8</div>
+            <div class="stat-pill"><span class="key">LD</span> 6+</div>
+            <div class="stat-pill"><span class="key">INV</span> 4+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag epic">Epic Hero</span>
+            <span class="kw-tag">Character</span>
+            <span class="kw-tag">Vehicle</span>
+            <span class="kw-tag">Battlesuit</span>
+            <span class="kw-tag">Fly</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">Dawn Blade · Plasma rifle</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
+      <a class="unit-card" id="twin-lance" href="twin_lance.html">
+        <div class="card-header">
+          <div class="card-name">The Twin Lance</div>
+          <div class="card-pts">185 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 10"</div>
+            <div class="stat-pill"><span class="key">T</span> 6</div>
+            <div class="stat-pill"><span class="key">SV</span> 2+</div>
+            <div class="stat-pill"><span class="key">W</span> 8</div>
+            <div class="stat-pill"><span class="key">LD</span> 6+</div>
+            <div class="stat-pill"><span class="key">INV</span> 4+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag epic">Epic Hero</span>
+            <span class="kw-tag">Character</span>
+            <span class="kw-tag">2 Models</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">Ri'Lantar · Ri'Locai</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
+      <a class="unit-card" id="coldstar" href="coldstar.html">
+        <div class="card-header">
+          <div class="card-name">Commander in Coldstar Battlesuit</div>
+          <div class="card-pts">95 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 12"</div>
+            <div class="stat-pill"><span class="key">T</span> 5</div>
+            <div class="stat-pill"><span class="key">SV</span> 3+</div>
+            <div class="stat-pill"><span class="key">W</span> 7</div>
+            <div class="stat-pill"><span class="key">LD</span> 7+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag">Character</span>
+            <span class="kw-tag">Vehicle</span>
+            <span class="kw-tag">Battlesuit</span>
+            <span class="kw-tag">Fly</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">2x Burst · Ion blaster · HOBC</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
+      <a class="unit-card" id="enforcer" href="enforcer.html">
+        <div class="card-header">
+          <div class="card-name">Commander in Enforcer Battlesuit</div>
+          <div class="card-pts">100 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 8"</div>
+            <div class="stat-pill"><span class="key">T</span> 5</div>
+            <div class="stat-pill"><span class="key">SV</span> 2+</div>
+            <div class="stat-pill"><span class="key">W</span> 7</div>
+            <div class="stat-pill"><span class="key">LD</span> 7+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag">Character</span>
+            <span class="kw-tag">Warlord</span>
+            <span class="kw-tag">Battlesuit</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">4x Missile pod · Starflare</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- BATTLELINE -->
+    <div class="anchor" id="battleline">
+      <div class="section-header">
+        <h2>Battleline</h2>
+        <div class="section-line"></div>
+        <div class="section-count">1 unit · 65 pts</div>
       </div>
     </div>
-    <div class="form-section">Statistieken</div>
-    <div class="form-grid-3">
-      <div class="form-row"><label>Move</label><input type="text" id="f-move" placeholder="bijv. 10&quot;"></div>
-      <div class="form-row"><label>Toughness</label><input type="number" id="f-t" min="1"></div>
-      <div class="form-row"><label>Save</label><input type="text" id="f-save" placeholder="bijv. 3+"></div>
-      <div class="form-row"><label>Wounds</label><input type="number" id="f-w" min="1"></div>
-      <div class="form-row"><label>Leadership</label><input type="number" id="f-ld" min="1"></div>
-      <div class="form-row"><label>OC</label><input type="number" id="f-oc" min="0"></div>
+
+    <div class="units-grid">
+
+      <a class="unit-card" id="kroot" href="kroot.html">
+        <div class="card-header">
+          <div class="card-name">Kroot Carnivores</div>
+          <div class="card-pts">65 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 7"</div>
+            <div class="stat-pill"><span class="key">T</span> 3</div>
+            <div class="stat-pill"><span class="key">SV</span> 6+</div>
+            <div class="stat-pill"><span class="key">W</span> 1</div>
+            <div class="stat-pill"><span class="key">LD</span> 7+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag">Infantry</span>
+            <span class="kw-tag">Kroot</span>
+            <span class="kw-tag">Grenades</span>
+            <span class="kw-tag">Scouts 7"</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">10 models · Tanglebomb launcher</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
     </div>
-    <div class="form-section">Uitrusting & punten</div>
-    <div class="form-row"><label>Wapens (komma-gescheiden)</label><input type="text" id="f-weapons" placeholder="Pulse Rifle, Fusion Blaster"></div>
-    <div class="form-row"><label>Abilities (komma-gescheiden)</label><input type="text" id="f-abilities" placeholder="Markerlight, For The Greater Good"></div>
-    <div class="form-row"><label>Keywords (komma-gescheiden)</label><input type="text" id="f-keywords" placeholder="Fly, Battlesuit"></div>
-    <div class="form-row"><label>Punten</label><input type="number" id="f-pts" min="0"></div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal()">Annuleren</button>
-      <button class="btn btn-primary" onclick="saveUnit()">Opslaan</button>
+
+    <!-- RECONNAISSANCE -->
+    <div class="anchor" id="recon">
+      <div class="section-header">
+        <h2>Reconnaissance</h2>
+        <div class="section-line"></div>
+        <div class="section-count">3 units · 280 pts</div>
+      </div>
     </div>
-  </div>
+
+    <div class="units-grid">
+
+      <a class="unit-card" id="pathfinder-1" href="pathfinder_1.html">
+        <div class="card-header">
+          <div class="card-name">Pathfinder Team #1</div>
+          <div class="card-pts">90 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 7"</div>
+            <div class="stat-pill"><span class="key">T</span> 3</div>
+            <div class="stat-pill"><span class="key">SV</span> 4+</div>
+            <div class="stat-pill"><span class="key">W</span> 1</div>
+            <div class="stat-pill"><span class="key">LD</span> 7+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag">Infantry</span>
+            <span class="kw-tag">Markerlight</span>
+            <span class="kw-tag">Scouts 7"</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">10 models · Grav-inhibitor drone</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
+      <a class="unit-card" id="pathfinder-2" href="pathfinder_2.html">
+        <div class="card-header">
+          <div class="card-name">Pathfinder Team #2</div>
+          <div class="card-pts">90 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 7"</div>
+            <div class="stat-pill"><span class="key">T</span> 3</div>
+            <div class="stat-pill"><span class="key">SV</span> 4+</div>
+            <div class="stat-pill"><span class="key">W</span> 1</div>
+            <div class="stat-pill"><span class="key">LD</span> 7+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag">Infantry</span>
+            <span class="kw-tag">Markerlight</span>
+            <span class="kw-tag">Infiltrators</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">10 models · Recon drone</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
+      <a class="unit-card" id="stealth" href="stealth.html">
+        <div class="card-header">
+          <div class="card-name">Stealth Battlesuits</div>
+          <div class="card-pts">100 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 8"</div>
+            <div class="stat-pill"><span class="key">T</span> 4</div>
+            <div class="stat-pill"><span class="key">SV</span> 3+</div>
+            <div class="stat-pill"><span class="key">W</span> 2</div>
+            <div class="stat-pill"><span class="key">LD</span> 7+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag">Infantry</span>
+            <span class="kw-tag">Battlesuit</span>
+            <span class="kw-tag">Stealth</span>
+            <span class="kw-tag">Infiltrators</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">5 models · Burst cannons</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- CRISIS BATTLESUITS -->
+    <div class="anchor" id="crisis">
+      <div class="section-header">
+        <h2>Crisis Battlesuits</h2>
+        <div class="section-line"></div>
+        <div class="section-count">3 units · 370 pts</div>
+      </div>
+    </div>
+
+    <div class="units-grid">
+
+      <a class="unit-card" id="fireknife" href="fireknife.html">
+        <div class="card-header">
+          <div class="card-name">Crisis Fireknife Battlesuits</div>
+          <div class="card-pts">120 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 10"</div>
+            <div class="stat-pill"><span class="key">T</span> 5</div>
+            <div class="stat-pill"><span class="key">SV</span> 3+</div>
+            <div class="stat-pill"><span class="key">W</span> 5</div>
+            <div class="stat-pill"><span class="key">LD</span> 7+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag">Vehicle</span>
+            <span class="kw-tag">Battlesuit</span>
+            <span class="kw-tag">Crisis</span>
+            <span class="kw-tag">Fly</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">3 models · 6x Missile pod</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
+      <a class="unit-card" id="starscythe" href="starscythe.html">
+        <div class="card-header">
+          <div class="card-name">Crisis Starscythe Battlesuits</div>
+          <div class="card-pts">110 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 10"</div>
+            <div class="stat-pill"><span class="key">T</span> 5</div>
+            <div class="stat-pill"><span class="key">SV</span> 3+</div>
+            <div class="stat-pill"><span class="key">W</span> 5</div>
+            <div class="stat-pill"><span class="key">LD</span> 7+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag">Vehicle</span>
+            <span class="kw-tag">Battlesuit</span>
+            <span class="kw-tag">Crisis</span>
+            <span class="kw-tag">Fly</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">3 models · Flamers + Burst cannons</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
+      <a class="unit-card" id="sunforge" href="sunforge.html">
+        <div class="card-header">
+          <div class="card-name">Crisis Sunforge Battlesuits</div>
+          <div class="card-pts">140 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 10"</div>
+            <div class="stat-pill"><span class="key">T</span> 5</div>
+            <div class="stat-pill"><span class="key">SV</span> 3+</div>
+            <div class="stat-pill"><span class="key">W</span> 5</div>
+            <div class="stat-pill"><span class="key">LD</span> 7+</div>
+            <div class="stat-pill"><span class="key">INV</span> 4+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag">Vehicle</span>
+            <span class="kw-tag">Battlesuit</span>
+            <span class="kw-tag">Crisis</span>
+            <span class="kw-tag">Fly</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">3 models · 6x Fusion blaster</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- HEAVY SUPPORT -->
+    <div class="anchor" id="heavy">
+      <div class="section-header">
+        <h2>Heavy Support</h2>
+        <div class="section-line"></div>
+        <div class="section-count">1 unit · 200 pts</div>
+      </div>
+    </div>
+
+    <div class="units-grid">
+
+      <a class="unit-card" id="riptide" href="riptide.html">
+        <div class="card-header">
+          <div class="card-name">Riptide Battlesuit</div>
+          <div class="card-pts">200 <span>pts</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-stats">
+            <div class="stat-pill"><span class="key">M</span> 10"</div>
+            <div class="stat-pill"><span class="key">T</span> 9</div>
+            <div class="stat-pill"><span class="key">SV</span> 2+</div>
+            <div class="stat-pill"><span class="key">W</span> 14</div>
+            <div class="stat-pill"><span class="key">LD</span> 7+</div>
+            <div class="stat-pill"><span class="key">INV</span> 4+</div>
+          </div>
+          <div class="card-keywords">
+            <span class="kw-tag">Vehicle</span>
+            <span class="kw-tag">Battlesuit</span>
+            <span class="kw-tag">Riptide</span>
+            <span class="kw-tag">Fly</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-models">Ion accelerator · SMS · 2x Missile drone</div>
+          <div class="open-link">Open</div>
+        </div>
+      </a>
+
+    </div>
+
+  </main>
 </div>
 
-<!-- Weapon profile modal -->
-<div class="modal-overlay" id="weapon-modal-overlay">
-  <div class="modal modal-wide">
-    <h2 id="weapon-modal-title">Wapenprofiel</h2>
-    <div class="weapon-table-wrap">
-      <table class="weapon-table">
-        <thead>
-          <tr>
-            <th>Wapen</th>
-            <th>Range</th>
-            <th>A</th>
-            <th>BS/WS</th>
-            <th>S</th>
-            <th>AP</th>
-            <th>D</th>
-            <th>Keywords</th>
-          </tr>
-        </thead>
-        <tbody id="weapon-table-body"></tbody>
-      </table>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="closeWeaponModal()">Sluiten</button>
-    </div>
-  </div>
-</div>
+<script>
+  const navEl = document.querySelector('nav:not(.bottom-nav)');
+  const menuBtn = document.getElementById('menuBtn');
+  const overlay = document.getElementById('navOverlay');
 
-<script src="main.js"></script>
+  function openNav() {
+    navEl.classList.add('open');
+    menuBtn.classList.add('open');
+    overlay.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeNav() {
+    navEl.classList.remove('open');
+    menuBtn.classList.remove('open');
+    overlay.classList.remove('visible');
+    document.body.style.overflow = '';
+  }
+
+  menuBtn.addEventListener('click', () => navEl.classList.contains('open') ? closeNav() : openNav());
+  overlay.addEventListener('click', closeNav);
+
+  const items = document.querySelectorAll('.nav-item');
+  const bnLinks = document.querySelectorAll('.bottom-nav a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        items.forEach(i => i.classList.toggle('active', i.getAttribute('href') === '#' + id));
+        const section = e.target.closest('[id$="characters"],[id="battleline"],[id="recon"],[id="crisis"],[id="heavy"]');
+        const sectionId = '#' + (section ? section.id : id);
+        bnLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === sectionId || a.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-20% 0px -60% 0px' });
+
+  document.querySelectorAll('.unit-card[id], .anchor[id]').forEach(el => observer.observe(el));
+
+  items.forEach(item => {
+    item.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(item.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(closeNav, 300);
+      }
+    });
+  });
+
+  bnLinks.forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(link.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+
 </body>
 </html>
